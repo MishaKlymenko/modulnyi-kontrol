@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f8">
+  <title>Модульний контроль — HTML, CSS, Flexbox, Grid</title>
+  <style>
+    :root{color-scheme:light dark;--bg:#f5f6f8;--card:#fff;--tx:#1b1f27;--mut:#5d6675;--ac:#2f5bea;--bd:#d9dde5;--bad:#b3261e;--ok:#16713b}
+    @media(prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2128;--tx:#e8eaee;--mut:#a4adba;--ac:#6c8cff;--bd:#323946;--bad:#ff7777;--ok:#69d391}}
+    *{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+    main{max-width:860px;margin:auto;padding:20px 16px 60px}.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:22px;margin-bottom:16px}
+    h1{font-size:1.5rem;margin:.2em 0 .4em}h2{font-size:1.1rem;margin:0 0 .6em}p{overflow-wrap:anywhere}.mut{color:var(--mut)}.bad{color:var(--bad)}.ok{color:var(--ok)}
+    input[type=text],textarea{width:100%;padding:12px;font:inherit;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx)}
+    textarea{min-height:150px;resize:vertical}textarea.code{min-height:250px;font:14px/1.5 ui-monospace,Consolas,monospace;tab-size:2}
+    button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:9px 16px;border-radius:10px}
+    button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+    button:disabled{opacity:.6;cursor:wait}.pri{background:var(--ac);color:#fff;border:0;padding:12px 22px}.big{display:block;width:100%;margin-top:18px;padding:25px;font-size:1.7rem;font-weight:700;background:var(--ac);color:#fff;border:0;border-radius:18px}
+    .bar{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;gap:12px;background:var(--card);border-bottom:1px solid var(--bd);padding:10px 16px}
+    .pts{float:right;color:var(--mut);font-size:.9rem}iframe{width:100%;height:220px;border:1px solid var(--bd);border-radius:10px;background:white;margin-top:8px}
+    #warn{position:fixed;inset:0;background:#000d;z-index:9;display:none;align-items:center;justify-content:center;padding:20px}#warn .card{max-width:440px;text-align:center}#cd{font-size:2rem;display:block}
+    table{border-collapse:collapse;width:100%}td,th{border:1px solid var(--bd);padding:8px;text-align:left;vertical-align:top}td:nth-child(2){white-space:nowrap}.wrap{overflow-x:auto}.missing{color:var(--bad)}
+    @media(max-width:600px){.card{padding:17px}.bar{font-size:.9rem}.big{font-size:1.4rem}}
+  </style>
+</head>
+<body>
+  <div id="warn" role="dialog" aria-modal="true" aria-labelledby="warn-title">
+    <div class="card"><h2 id="warn-title">Ви повернулися до тесту?</h2><p>Було втрачено фокус сторінки. Підтвердьте присутність протягом 10 секунд.</p><b id="cd">10</b><button class="pri" id="here">Так, я тут</button></div>
+  </div>
+  <div id="app" aria-live="polite"></div>
+  <script>
+    "use strict";
+    const WARN=10, DURATION=80*60, POINTS=[10,12,14,16,18];
+    const variants=[
+      {t:[
+        "Розшифруйте абревіатуру HTML і поясніть, для чого використовується ця мова.",
+        "Які існують способи підключення CSS до HTML? Коротко охарактеризуйте кожен.",
+        "З яких частин складається CSS-правило? Розберіть на прикладі.",
+        "Для чого призначена властивість display? Назвіть основні значення.",
+        "Що таке Flexbox і для яких задач його доцільно застосовувати?"
+      ],k:[
+        [["hypertext","гіпертекст"],["markup","розміт"],["структур","елемент"],["сторін","документ"]],
+        [["inline","рядков"],["внутріш","style"],["зовніш","link","stylesheet"],["пріоритет","каскад"]],
+        [["селектор"],["властив"],["значенн"],["декларац","правил"]],
+        [["block","блок"],["inline","рядков"],["flex"],["grid"],["none"]],
+        [["одновимір","одновим"],["контейнер"],["головн","вісь"],["поперечн","вісь"],["вирівнюван","розташув"]]
+      ],p:[
+        {q:"Створіть картку товару: блок-заглушка зображення, назва, ціна, кнопка. Стилі — у внутрішньому style через класи; картка має рамку, заокруглення й відступи.",c:[["картка","товар"],/<style\b/i,/class\s*=/i,/border\s*:/i,/border-radius\s*:/i,/padding\s*:/i,/<button\b/i]},
+        {q:"Зробіть горизонтальне меню з 4 посилань через display:flex і gap; при наведенні посилання змінює колір фону.",c:[/<nav\b|<ul\b/i,/<a\b[^>]*>[\s\S]*<\/a>/i,/(display\s*:\s*flex|class\s*=\s*["'][^"']*(menu|nav))/i,/gap\s*:/i,/:hover/i,/(background|background-color)\s*:/i]}
+      ]},
+      {t:[
+        "Чим HTML відрізняється від мов програмування? Назвіть три ознаки.",
+        "Що таке inline-стилі? Коли їх використовують і чому не варто зловживати?",
+        "Який синтаксис оголошення в CSS і чи обов'язкова крапка з комою в кінці?",
+        "Порівняйте display:none, visibility:hidden та opacity:0.",
+        "Що таке Emmet? Як за допомогою скорочення створити базовий каркас HTML-сторінки?"
+      ],k:[
+        [["розмітк","структур"],["не викону","логік","алгоритм"],["тег","елемент"],["контент","вміст"]],
+        [["style","атрибут"],["елемент"],["швидк","тест"],["повтор","підтрим","каскад"]],
+        [["селектор"],["фігурн"],["властив"],["двокрапк"],["крапк","не обов'язк","останн"]],
+        [["потік","місц"],["видим"],["прозор"],["поді","події"],["місце"]],
+        [["скороч","абревіатур"],["розгорта","генеру"],["html:5","!"],["doctype"],["html","head","body"]]
+      ],p:[
+        {q:"Напишіть каркас HTML-сторінки (lang=\"uk\", charset, viewport, title), список із 5 пунктів і підключіть стилі через link.",c:[/<!doctype\s+html/i,/<html\b[^>]*lang\s*=\s*["']uk/i,/<meta\b[^>]*charset/i,/<meta\b[^>]*viewport/i,/<title\b/i,/<link\b[^>]*stylesheet/i,/<li\b[\s\S]*<li\b[\s\S]*<li\b[\s\S]*<li\b[\s\S]*<li\b/i]},
+        {q:"Створіть три абзаци: перший із display:none, другий із visibility:hidden, третій з opacity:.3. Підпишіть кожен і поясніть коментарями, що буде видно.",c:[/<p\b[^>]*>[\s\S]*<p\b[^>]*>[\s\S]*<p\b/i,/display\s*:\s*none/i,/visibility\s*:\s*hidden/i,/opacity\s*:\s*0?\.3/i,/<!--[\s\S]*-->/]}
+      ]},
+      {t:[
+        "Які обов'язкові елементи містить скелет HTML-документа? Поясніть їх призначення.",
+        "Де і як підключають внутрішні стилі через style?",
+        "Як записують коментарі в CSS і чим вони відрізняються від HTML-коментарів?",
+        "Як працює display:inline? Які властивості для нього не діють?",
+        "Що таке CSS Grid і чим він відрізняється від Flexbox?"
+      ],k:[
+        [["doctype"],["html"],["head"],["body"],["meta","title"]],
+        [["head"],["<style","style>"],["css"],["закрив","тег"]],
+        [["/*","*/"],["<!--","-->"],["css"],["html"]],
+        [["рядк","текст"],["ширин","висот"],["вертикальн","padding","margin"],["розмір"]],
+        [["двовимір","два вимір"],["рядк"],["колон"],["flexbox"],["одновимір","один вимір"]]
+      ],p:[
+        {q:"Зробіть у рядок три блоки display:inline-block, кожен шириною 30%, з рамкою і відступами між ними.",c:[/display\s*:\s*inline-block/i,/width\s*:\s*30%/i,/border\s*:/i,/margin\s*:/i,/(<div|<section|class\s*=)/i]},
+        {q:"Створіть галерею з 6 клітинок у 3 колонки через CSS Grid із gap:10px; кожна клітинка має висоту 100px і фон.",c:[/display\s*:\s*grid/i,/grid-template-columns\s*:[^;]*(repeat\s*\(\s*3|1fr[^;]*1fr[^;]*1fr)/i,/gap\s*:\s*10px/i,/height\s*:\s*100px/i,/background(-color)?\s*:/i,/<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b/i]}
+      ]},
+      {t:[
+        "Навіщо потрібна декларація <!DOCTYPE html> і що буде без неї?",
+        "Як підключити зовнішній файл стилів через link rel=\"stylesheet\"?",
+        "Порівняйте абсолютні та відносні одиниці: px, %, em, rem, vw, vh.",
+        "Чим inline-block відрізняється від inline та block?",
+        "Що таке головна й поперечна осі Flexbox? Як їх змінює flex-direction?"
+      ],k:[
+        [["стандарт","режим"],["браузер"],["quirks","суміс"],["на початку","перш"]],
+        [["link"],["rel"],["stylesheet"],["href"],["head"]],
+        [["px"],["відносн","%","em","rem","vw","vh"],["корен","батьк"],["viewport","вікн"]],
+        [["рядк"],["блок"],["ширин","висот"],["в одному рядку","перенос"]],
+        [["головн","main"],["поперечн","cross"],["flex-direction"],["row","column"],["міня","напрям"]]
+      ],p:[
+        {q:"Підключіть Google Fonts через link (із preconnect і display=swap) для заголовків; решті тексту задайте резервний стек шрифтів.",c:[/<link\b[^>]*fonts\.googleapis\.com/i,/<link\b[^>]*rel\s*=\s*["']preconnect/i,/display\s*=\s*swap/i,/(font-family|font)\s*:/i,/(h1|h2|h3)\s*\{/i,/sans-serif|serif|system-ui/i]},
+        {q:"Створіть flex-контейнер із 3 блоків: стовпчик за замовчуванням, а від ширини 600px — рядок (через @media).",c:[/display\s*:\s*flex/i,/flex-direction\s*:\s*column/i,/@media/i,/min-width\s*:\s*600px/i,/flex-direction\s*:\s*row/i,/(<div|class\s*=)[\s\S]*?(<div|class\s*=)[\s\S]*?(<div|class\s*=)/i]}
+      ]},
+      {t:[
+        "Порівняйте head і body: що в них розміщують? По три приклади.",
+        "Чим підключення через link відрізняється від @import?",
+        "Чим em відрізняється від rem? Наведіть ситуацію з різним результатом.",
+        "Що відбувається з контейнером і його дітьми при display:flex та display:grid?",
+        "Що створять скорочення .container та div.box#main? Поясніть запис класу й id."
+      ],k:[
+        [["head"],["body"],["meta","title","link"],["контент","видим"]],
+        [["html","link"],["css","import"],["завантаж","запит"],["пріоритет","пізніше"]],
+        [["батьк","поточного"],["корен","root"],["успадк"],["різн","розмір"]],
+        [["flex"],["grid"],["контейнер"],["дочірн","елемент"],["рядк","колон"]],
+        [["клас"],["id"],["крапк"],["решітк","#"],["div"],["скороч","розгорта"]]
+      ],p:[
+        {q:"Зробіть меню з класом .item у кожному пункті та класом .active в одному. Напишіть CSS, щоб активний пункт був червоним без !important.",c:[/<(?:li|a|div)\b[^>]*class\s*=\s*["'][^"']*item/i,/class\s*=\s*["'][^"']*active/i,/\.active\b/i,/color\s*:\s*(red|#f00|#ff0000)/i,/^(?![\s\S]*!important)[\s\S]*$/i]},
+        {q:"Створіть сітку з 6 клітинок: grid-template-columns:1fr 2fr, дві колонки, три рядки; задайте gap і фон.",c:[/display\s*:\s*grid/i,/grid-template-columns\s*:\s*1fr\s+2fr/i,/grid-template-rows\s*:/i,/gap\s*:/i,/background(-color)?\s*:/i,/<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b/i]}
+      ]},
+      {t:[
+        "Що таке атрибути тегів? Поясніть дію id, class, style, title, lang.",
+        "У якому порядку застосовуються стилі з кількох джерел? Чи важливий порядок підключення?",
+        "Що таке успадкування в CSS? Які властивості успадковуються, а які ні?",
+        "Як display:contents впливає на елемент?",
+        "Як створити сітку через grid-template-columns і grid-template-rows?"
+      ],k:[
+        [["атрибут"],["id"],["class"],["style"],["title"],["lang"]],
+        [["каскад"],["специфічн","важлив"],["порядок"],["пізніш","підключ"]],
+        [["успадк"],["font","color","колір"],["border","margin","не успадк"]],
+        [["обгорт","короб"],["зника","box"],["діти","дочірн"],["розмітк","layout"]],
+        [["grid-template-columns"],["grid-template-rows"],["рядк"],["колон"],["значенн","розмір"]]
+      ],p:[
+        {q:"Зробіть таблицю розкладу (thead + tbody, 3 рядки даних, 3 колонки), парні рядки tbody мають інший колір через :nth-child(even).",c:[/<table\b/i,/<thead\b/i,/<tbody\b/i,/<tr\b[\s\S]*<tr\b[\s\S]*<tr\b/i,/:nth-child\s*\(\s*even\s*\)/i,/background(-color)?\s*:/i,/<th\b/i,/<td\b/i]},
+        {q:"Створіть сітку grid-template-columns:repeat(3,1fr) і grid-template-rows:100px 150px з 6 елементів; один займає 2 колонки.",c:[/display\s*:\s*grid/i,/grid-template-columns\s*:\s*repeat\s*\(\s*3\s*,\s*1fr\s*\)/i,/grid-template-rows\s*:\s*100px\s+150px/i,/grid-column\s*:[^;]*span\s+2/i,/gap\s*:/i,/<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b[\s\S]*<(?:div|li)\b/i]}
+      ]},
+      {t:[
+        "Для чого потрібні meta charset=\"UTF-8\" та meta name=\"viewport\"?",
+        "Які бувають способи підключення шрифтів: системні, локальні, веб-шрифти (Google Fonts)?",
+        "Назвіть базові селектори й наведіть приклад кожного.",
+        "Які значення має властивість position? Охарактеризуйте кожне.",
+        "Порівняйте justify-content, align-items і align-content у Flexbox."
+      ],k:[
+        [["charset","кодуван"],["utf-8"],["viewport"],["адаптив","ширин","пристр"]],
+        [["системн"],["локальн","font-face"],["веб","google"],["fallback","резерв"]],
+        [["тег","елемент"],["клас"],["id"],["атрибут"],["універсальн","*"]],
+        [["static"],["relative"],["absolute"],["fixed"],["sticky"],["віднос"]],
+        [["головн","main axis"],["поперечн","cross axis"],["justify-content"],["align-items"],["align-content"]]
+      ],p:[
+        {q:"Зробіть форму реєстрації: поля імені та email із label (зв'язок через for/id), кнопка. Для :focus поля змінюється рамка.",c:[/<form\b/i,/<label\b[^>]*for\s*=/i,/<input\b[^>]*id\s*=/i,/(type\s*=\s*["']email|email)/i,/<button\b|<input\b[^>]*type\s*=\s*["']submit/i,/:focus\b/i,/border\s*:/i]},
+        {q:"Створіть flex-панель: логотип зліва, меню по центру, кнопка справа (justify-content:space-between, align-items:center).",c:[/display\s*:\s*flex/i,/justify-content\s*:\s*space-between/i,/align-items\s*:\s*center/i,/(logo|логотип)/i,/menu|меню|<nav\b/i,/<button\b/i]}
+      ]},
+      {t:[
+        "Чим парні теги відрізняються від одинарних (void)? Наведіть по три приклади.",
+        "Як працює правило @font-face? Для чого font-family, src, font-weight, font-style, font-display?",
+        "Порівняйте id і class: скільки разів можна використовувати, яка вага.",
+        "Як працює position:static і чому для нього не діють top, left?",
+        "Що роблять оператори >, +, ^, * в Emmet? Що розгорне ul>li*5?"
+      ],k:[
+        [["відкрив","закрив"],["void","одинарн"],["img","br","hr","input"],["html","тег"]],
+        [["шрифт","font"],["font-family"],["src"],["font-weight"],["font-style"],["font-display"]],
+        [["id"],["унікальн","один"],["class"],["багато","кільк"],["специфічн","вага"]],
+        [["звичайн","потік"],["top","left"],["не вплива","ігнор"],["відносн","static"]],
+        [[">","дочірн"],["+","поруч"],["^","батьк"],["*","повтор"],["li*5","п'ять","5"]]
+      ],p:[
+        {q:"Створіть картку з бейджем NEW у правому верхньому куті: картка position:relative, бейдж position:absolute.",c:[/position\s*:\s*relative/i,/position\s*:\s*absolute/i,/(top|right)\s*:/i,/(NEW|new)/i,/(<div|<article|class\s*=)/i,/badge|бейдж/i]},
+        {q:"Підключіть локальний шрифт через @font-face (woff2 і woff у src) та застосуйте його до body; задайте font-display:swap і резервний шрифт.",c:[/@font-face/i,/\.woff2?/i,/font-family\s*:/i,/font-display\s*:\s*swap/i,/body\s*\{/i,/sans-serif|serif|system-ui/i]}
+      ]},
+      {t:[
+        "Які правила вкладеності тегів? Чому <p><div>Текст</div></p> — помилка?",
+        "Які формати шрифтів використовують у вебі і чому woff2 — найкращий вибір?",
+        "Поясніть комбінатори: пробіл, >, +, ~.",
+        "Чим relative відрізняється від absolute? Відносно чого вони позиціонуються?",
+        "Що таке fr, repeat() та minmax() у Grid?"
+      ],k:[
+        [["вкладен"],["закрив","порядок"],["блоков","div"],["p","абзац"],["автоматичн","закрива"]],
+        [["woff2"],["стиснен","розмір"],["woff","ttf","otf"],["браузер","суміс"]],
+        [["нащад","пробіл"],["дочірн",">"],["сусідн","+","~"],["селектор"]],
+        [["relative"],["absolute"],["потік","місц"],["найближч","предок"],["координат","зсув"]],
+        [["fr","част"],["repeat"],["minmax"],["гнучк","розмір"],["колон","трек"]]
+      ],p:[
+        {q:"Зробіть три картки в адаптивній сітці: grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) і gap:16px.",c:[/display\s*:\s*grid/i,/grid-template-columns\s*:\s*repeat\s*\(\s*auto-fit\s*,\s*minmax\s*\(\s*200px\s*,\s*1fr\s*\)\s*\)/i,/gap\s*:\s*16px/i,/(<article|<div|class\s*=\s*["'][^"']*card)/i,/card[\s\S]*card[\s\S]*card/i]},
+        {q:"Створіть вкладене меню (ul із вкладеним ul). Через комбінатор > стилізуйте лише пункти першого рівня, вкладені зробіть меншими.",c:[/<ul\b[\s\S]*<ul\b/i,/<li\b/i,/(ul\s*>\s*li|ul\s*>\s*li\s*[,:{])/i,/font-size\s*:/i,/(>.*li|>\s*li)/i]}
+      ]},
+      {t:[
+        "Як записують коментарі в HTML і для чого їх використовують?",
+        "Як підключити Google Fonts через link та @import? Навіщо preconnect і display=swap?",
+        "Як працюють селектори атрибутів [type=\"text\"], [href^=\"https\"], [class*=\"btn\"]?",
+        "Що таке позиціонований предок і як визначити його для absolute-елемента?",
+        "Для чого потрібні flex-wrap і gap? Як вони взаємодіють?"
+      ],k:[
+        [["<!--","-->"],["пояснен","коментар"],["браузер","не показ"]],
+        [["google fonts","fonts.googleapis"],["link"],["@import"],["preconnect"],["swap","display"]],
+        [["атрибут"],["type"],["^=","почина"],["*=","міст"],["href","class"]],
+        [["position"],["relative","absolute","fixed"],["найближч"],["предок","батьк"],["координат"]],
+        [["перенос"],["flex-wrap"],["gap"],["відступ"],["рядк","простір"]]
+      ],p:[
+        {q:"Створіть 4 посилання (два https, одне на .pdf, одне відносне). Через a[href^=\"https\"] зробіть https-посилання зеленими, а a[href$=\".pdf\"] додайте ::after із текстом PDF.",c:[/<a\b[^>]*href\s*=\s*["']https:/i,/<a\b[^>]*href\s*=\s*["'][^"']*\.pdf/i,/a\s*\[\s*href\s*\^=/i,/a\s*\[\s*href\s*\$=/i,/::after/i,/content\s*:/i,/color\s*:\s*(green|#0[0-9a-f]{2,5})/i]},
+        {q:"Зробіть ряд із 6 карток через flex-wrap:wrap, gap:16px і flex:1 1 250px.",c:[/display\s*:\s*flex/i,/flex-wrap\s*:\s*wrap/i,/gap\s*:\s*16px/i,/flex\s*:\s*1\s+1\s+250px/i,/card[\s\S]*card[\s\S]*card[\s\S]*card[\s\S]*card[\s\S]*card/i]}
+      ]},
+      {t:[
+        "Порівняйте блокові та рядкові елементи. Наведіть по три приклади.",
+        "Що таке резервний стек шрифтів? Як працює fallback, коли основний шрифт недоступний?",
+        "Що таке псевдокласи? Поясніть :hover, :focus, :first-child, :nth-child(), :not().",
+        "Як position:sticky «прилипає» і за яких умов?",
+        "Як в Emmet додати текст, атрибути й нумерацію? Розберіть a[href=\"#\"]{Link} та li.item$*3."
+      ],k:[
+        [["блоков","block"],["рядков","inline"],["нов","ряд"],["ширин","висот"],["приклад","div","span"]],
+        [["резервн","fallback"],["стек","список"],["наступн","доступн"],["шрифт","font-family"]],
+        [["псевдоклас"],["hover"],["focus"],["first-child"],["nth-child"],["not("]],
+        [["потік","звичайн"],["порог","top"],["прокрутк","scroll"],["контейнер","предок"],["sticky"]],
+        [["{}","текст"],["атрибут","[]"],["$","нумерац"],["li.item","клас"],["*3","три","3"]]
+      ],p:[
+        {q:"Зробіть довгу сторінку (5 абзаців-заглушок) із шапкою position:sticky; top:0, яка залишається видимою при прокручуванні.",c:[/<header\b/i,/position\s*:\s*sticky/i,/top\s*:\s*0/i,/<p\b[\s\S]*<p\b[\s\S]*<p\b[\s\S]*<p\b[\s\S]*<p\b/i,/(height|min-height)\s*:/i]},
+        {q:"Створіть список із 5 li. Першому задайте жирний шрифт, парним — сірий фон, останньому — без нижньої рамки; для решти рамка.",c:[/<li\b[\s\S]*<li\b[\s\S]*<li\b[\s\S]*<li\b[\s\S]*<li\b/i,/:first-child/i,/:nth-child\s*\(\s*even\s*\)/i,/(background|background-color)\s*:/i,/:last-child/i,/:not\s*\(\s*:last-child\s*\)/i,/border-bottom\s*:/i]}
+      ]}
+    ];
+
+    const app=document.querySelector("#app"), warn=document.querySelector("#warn");
+    const safeGet=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}};
+    const safeSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}};
+    const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const normalize=s=>String(s||"").toLocaleLowerCase("uk").replace(/\s+/g," ").trim();
+    const makeKey=s=>{let h=5381;for(const c of normalize(s))h=((h<<5)+h+c.charCodeAt(0))>>>0;return h.toString(16)};
+    let state=safeGet("mk_state"), clock=null, focusTimer=null, leftAt=null;
+
+    function render(){
+      if(!state)return login();
+      if(state.done)return results();
+      if(state.started)return exam();
+      intro();
+    }
+    function login(message=""){
+      app.innerHTML=`<main><section class="card"><h1>Модульний контроль</h1><p class="mut">HTML, CSS, Flexbox, Grid, Emmet</p>
+        <label for="student"><b>Прізвище та ім'я</b></label><p><input id="student" type="text" autocomplete="name" maxlength="120" placeholder="Наприклад, Коваленко Олена"></p>
+        <p class="bad" role="alert">${esc(message)}</p><button class="pri" id="continue">Продовжити</button></section></main>`;
+      document.querySelector("#continue").onclick=()=>{
+        const name=document.querySelector("#student").value.trim().replace(/\s+/g," ");
+        if(name.split(" ").length<2)return login("Введіть щонайменше прізвище та ім'я.");
+        const key=makeKey(name);
+        if(safeGet("mk_done_"+key))return login("У цьому браузері вже збережено завершену спробу для цього ПІБ.");
+        state={name,key,variant:parseInt(key,16)%variants.length,answers:{},started:false,done:false,violations:0,log:[]};
+        persist();render();
+      };
+    }
+    function persist(){safeSet("mk_state",state)}
+    function intro(){
+      app.innerHTML=`<main><section class="card"><h1>Вітаємо, ${esc(state.name)}</h1>
+        <p>Варіант: <b>${state.variant+1}</b>. П'ять теоретичних питань (70 балів) і два практичні завдання (по 15 балів). Час — 80 хвилин.</p>
+        <ul><li>Теоретичні відповіді перевіряються за ключовими поняттями; практичні — за ознаками виконання вимог.</li>
+        <li>Автоматична оцінка попередня: нестандартне правильне формулювання може не зарахуватися, а ключові слова не гарантують правильності.</li>
+        <li>Відповіді зберігаються лише в цьому браузері. Повторна спроба обмежується локальним сховищем і не є захистом від обходу.</li>
+        <li>Перемикання вкладки викликає запит підтвердження присутності; без відповіді за 10 секунд спроба завершується.</li></ul>
+        <button class="big" id="start">Почати</button></section></main>`;
+      document.querySelector("#start").onclick=()=>{state.started=true;state.end=Date.now()+DURATION*1000;persist();render()};
+    }
+    function exam(){
+      const v=variants[state.variant];
+      let html=`<div class="bar"><b>${esc(state.name)} · Варіант ${state.variant+1}</b><span id="timer" aria-live="off"></span></div><main>`;
+      v.t.forEach((q,i)=>html+=`<section class="card"><h2>Питання ${i+1}<span class="pts">${POINTS[i]} б.</span></h2><p>${esc(q)}</p><textarea data-answer="t${i}" aria-label="Відповідь на питання ${i+1}" placeholder="Ваша відповідь">${esc(state.answers["t"+i]||"")}</textarea></section>`);
+      v.p.forEach((p,i)=>html+=`<section class="card"><h2>Практичне завдання ${i+1}<span class="pts">15 б.</span></h2><p>${esc(p.q)}</p><textarea class="code" spellcheck="false" data-answer="p${i}" aria-label="Код практичного завдання ${i+1}" placeholder="HTML і CSS">${esc(state.answers["p"+i]||"")}</textarea><button type="button" data-preview="${i}">Переглянути результат</button><iframe title="Попередній перегляд" sandbox hidden></iframe></section>`);
+      html+=`<button class="pri" id="finish">Завершити модуль</button></main>`;
+      app.innerHTML=html;
+      app.querySelectorAll("[data-answer]").forEach(input=>{
+        input.addEventListener("input",()=>{state.answers[input.dataset.answer]=input.value;persist()});
+        input.addEventListener("keydown",e=>{if(e.key==="Tab"&&input.classList.contains("code")){e.preventDefault();input.setRangeText("  ",input.selectionStart,input.selectionEnd,"end");input.dispatchEvent(new Event("input"))}});
+      });
+      app.querySelectorAll("[data-preview]").forEach(button=>button.onclick=()=>{
+        const frame=button.nextElementSibling;frame.hidden=false;
+        frame.srcdoc=state.answers["p"+button.dataset.preview]||"";
+      });
+      document.querySelector("#finish").onclick=()=>{
+        if(!confirm("Завершити модуль? Після завершення відповіді не можна буде змінити."))return;
+        finish("Завершено студентом");
+      };
+      clearInterval(clock);
+      clock=setInterval(()=>{
+        const remaining=Math.max(0,Math.ceil((state.end-Date.now())/1000));
+        const timer=document.querySelector("#timer");
+        if(timer)timer.textContent=`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,"0")}`;
+        if(remaining<=0)finish("Час вичерпано");
+      },500);
+    }
+    function checkItems(text,criteria){
+      const normalized=normalize(text);
+      return criteria.map(criterion=>{
+        if(Array.isArray(criterion)){
+          return{label:criterion.join(" / "),passed:criterion.some(term=>normalized.includes(normalize(term)))};
+        }
+        return{label:criterion.source,passed:criterion.test(text)};
+      });
+    }
+    function grade(){
+      const v=variants[state.variant], grades=[];
+      v.t.forEach((q,i)=>{
+        const answer=state.answers["t"+i]||"", groups=v.k[i];
+        const normalized=normalize(answer);
+        const hit=groups.filter(group=>group.some(term=>normalized.includes(normalize(term)))).length;
+        const score=answer.trim()?Math.round(POINTS[i]*hit/groups.length):0;
+        const missing=groups.map((g,n)=>({g,n})).filter(x=>!x.g.some(term=>normalized.includes(normalize(term)))).map(x=>x.g[0]);
+        grades.push({name:`Питання ${i+1}`,score,max:POINTS[i],comment:answer.trim()?`${hit} із ${groups.length} груп понять; ${missing.length?`перевірте: ${missing.join(", ")}`:"основні поняття знайдено"}`:"Відповідь відсутня."});
+      });
+      v.p.forEach((task,i)=>{
+        const answer=state.answers["p"+i]||"", checks=checkItems(answer,task.c);
+        const passed=checks.filter(c=>c.passed).length;
+        const score=answer.trim()?Math.round(15*passed/checks.length):0;
+        grades.push({name:`Практичне ${i+1}`,score,max:15,comment:answer.trim()?`${passed} із ${checks.length} ознак виконано; ${checks.filter(c=>!c.passed).map(c=>c.label).join(", ")||"усі критерії знайдено"}`:"Відповідь відсутня.",checks});
+      });
+      state.grades=grades;state.total=grades.reduce((sum,g)=>sum+g.score,0);
+    }
+    function finish(reason){
+      if(!state||state.done)return;
+      clearInterval(clock);clearInterval(focusTimer);leftAt=null;warn.style.display="none";
+      state.done=true;state.reason=reason;state.finished=new Date().toISOString();grade();persist();
+      safeSet("mk_done_"+state.key,{finished:state.finished,total:state.total});render();
+    }
+    function exportResult(){
+      const payload={name:state.name,variant:state.variant+1,finished:state.finished,reason:state.reason,total:state.total,grades:state.grades,answers:state.answers,focusWarnings:state.violations,focusLog:state.log};
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+      const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`modulnyi-kontrol-${state.key}.json`;link.click();URL.revokeObjectURL(link.href);
+    }
+    function results(){
+      const rows=state.grades.map(g=>`<tr><td>${esc(g.name)}</td><td><b>${g.score}/${g.max}</b></td><td>${esc(g.comment)}</td></tr>`).join("");
+      app.innerHTML=`<main><section class="card"><h1>Модуль завершено</h1><p>${esc(state.name)}, попередній результат: <b>${state.total}/100</b>.</p>
+        <p class="mut">Це локальна автоматична перевірка за ключовими поняттями й текстовими ознаками коду, а не семантичне розуміння відповіді. Остаточне оцінювання має виконати викладач.</p>
+        <div class="wrap"><table><thead><tr><th>Завдання</th><th>Бал</th><th>Результат перевірки</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p class="mut">Порушень фокусу: ${state.violations}. Результати не передавались на сервер.</p>
+        <button class="pri" id="download">Завантажити результати JSON</button>
+      </section></main>`;
+      document.querySelector("#download").onclick=exportResult;
+    }
+    function leave(){
+      if(!state||!state.started||state.done||leftAt!==null)return;
+      leftAt=Date.now();warn.style.display="flex";document.querySelector("#cd").textContent=WARN;
+      clearInterval(focusTimer);
+      focusTimer=setInterval(()=>{
+        const remaining=WARN-Math.floor((Date.now()-leftAt)/1000);
+        document.querySelector("#cd").textContent=Math.max(0,remaining);
+        if(remaining<=0){clearInterval(focusTimer);finish("Не підтверджено присутність після втрати фокусу")}
+      },250);
+    }
+    document.addEventListener("visibilitychange",()=>{if(document.hidden)leave()});
+    window.addEventListener("blur",leave);
+    document.querySelector("#here").onclick=()=>{
+      if(leftAt===null)return;
+      const elapsed=(Date.now()-leftAt)/1000;
+      clearInterval(focusTimer);
+      if(elapsed>WARN)return finish("Не підтверджено присутність після втрати фокусу");
+      state.violations++;state.log.push({at:new Date().toISOString(),seconds:Math.round(elapsed)});
+      leftAt=null;warn.style.display="none";persist();
+    };
+    render();
+  </script>
+</body>
+</html>
