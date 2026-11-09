@@ -1,6 +1,3 @@
-const OWNER = "MishaKlymenko";
-const REPOSITORY = "modulnyi-kontrol-results";
-const API_BASE = `https://api.github.com/repos/${OWNER}/${REPOSITORY}/contents`;
 const ALLOWED_ORIGIN = process.env.SUBMISSIONS_ALLOWED_ORIGIN || "https://modulnyi-kontrol.vercel.app";
 const MAX_BODY_BYTES = 80_000;
 
@@ -37,9 +34,10 @@ module.exports = async function handler(req, res) {
     return reply(res, 403, { error: "Origin not allowed" });
   }
 
-  const token = process.env.SUBMISSIONS_GITHUB_TOKEN;
-  if (!token) {
-    console.error("Missing SUBMISSIONS_GITHUB_TOKEN environment variable");
+  const endpoint = process.env.GOOGLE_APPS_SCRIPT_URL;
+  const secret = process.env.SUBMISSION_SHARED_SECRET;
+  if (!endpoint || !secret) {
+    console.error("Missing Google Sheets submission environment variables");
     return reply(res, 503, { error: "Submission storage is not configured" });
   }
 
@@ -53,54 +51,37 @@ module.exports = async function handler(req, res) {
     return reply(res, 400, { error: "Invalid submission" });
   }
 
-  const path = `submissions/${payload.id}.json`;
-  const headers = {
-    Accept: "application/vnd.github+json",
-    Authorization: `Bearer ${token}`,
-    "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "modulnyi-kontrol-submissions"
-  };
+  let target;
+  try {
+    target = new URL(endpoint);
+  } catch {
+    console.error("GOOGLE_APPS_SCRIPT_URL is invalid");
+    return reply(res, 503, { error: "Submission storage is not configured" });
+  }
+  if (target.protocol !== "https:" || target.hostname !== "script.google.com" || !target.pathname.startsWith("/macros/s/") || !target.pathname.endsWith("/exec")) {
+    console.error("GOOGLE_APPS_SCRIPT_URL must be a Google Apps Script web app URL");
+    return reply(res, 503, { error: "Submission storage is not configured" });
+  }
 
   try {
-    const fileUrl = `${API_BASE}/${path}`;
-    const existing = await fetch(`${fileUrl}?ref=main`, { headers });
-    let sha;
-    if (existing.ok) {
-      sha = (await existing.json()).sha;
-    } else if (existing.status !== 404) {
-      console.error("Unable to check submission file:", existing.status);
+    const upstream = await fetch(target, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, secret })
+    });
+    if (!upstream.ok) {
+      console.error("Google Apps Script returned HTTP", upstream.status);
       return reply(res, 502, { error: "Unable to save submission" });
     }
 
-    const data = {
-      id: payload.id,
-      name: payload.name.trim().replace(/\s+/g, " "),
-      variant: payload.variant,
-      answers: payload.answers,
-      reason: payload.reason,
-      focusWarnings: payload.focusWarnings,
-      focusLog: payload.focusLog,
-      finished: payload.finished
-    };
-    const content = Buffer.from(`${JSON.stringify(data, null, 2)}\n`, "utf8").toString("base64");
-    const saved = await fetch(fileUrl, {
-      method: "PUT",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: "Save student submission",
-        content,
-        branch: "main",
-        ...(sha ? { sha } : {})
-      })
-    });
-
-    if (!saved.ok) {
-      console.error("Unable to save submission:", saved.status);
+    const result = await upstream.json();
+    if (result?.saved !== true) {
+      console.error("Google Apps Script did not confirm the submission");
       return reply(res, 502, { error: "Unable to save submission" });
     }
     return reply(res, 201, { saved: true });
   } catch (error) {
-    console.error("Submission storage request failed:", error.message);
+    console.error("Google Sheets submission request failed:", error.message);
     return reply(res, 502, { error: "Unable to save submission" });
   }
 };
